@@ -1,0 +1,16 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/ximea_cam/lib/python3.10/site-packages",
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/stream_camera_lidar/lib/python3.10/site-packages",
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/pcap_avi_to_ros2/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/ximea_cam/lib/python3.10/site-packages",
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/stream_camera_lidar/lib/python3.10/site-packages",
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/pcap_avi_to_ros2/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
+}

@@ -1,0 +1,20 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/pcap_avi_to_ros2/lib/python3.10/site-packages",
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/velodyne_pcap_publisher/lib/python3.10/site-packages",
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/lidar_data/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages",
+        "",
+        "/home/kulikov/DATPROJ/bop_toolkit"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/pcap_avi_to_ros2/lib/python3.10/site-packages",
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/velodyne_pcap_publisher/lib/python3.10/site-packages",
+        "/home/kulikov/camera_lidar/ros2_ws_lidar/install/lidar_data/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages",
+        "",
+        "/home/kulikov/DATPROJ/bop_toolkit"
+    ]
+}
