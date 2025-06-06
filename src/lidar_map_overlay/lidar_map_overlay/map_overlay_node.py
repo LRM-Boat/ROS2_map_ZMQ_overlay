@@ -7,7 +7,6 @@ import sensor_msgs_py.point_cloud2 as pc2
 import numpy as np
 import math
 import tf2_geometry_msgs
-from sensor_msgs.msg import PointField
 
 
 class MapOverlayNode(Node):
@@ -16,39 +15,66 @@ class MapOverlayNode(Node):
 
         self.draw_distance = self.declare_parameter('draw_distance', 3.0).value
 
-        # Подписка на карту, облако точек и трансформацию
+        # Подписки
         self.subscription_map = self.create_subscription(OccupancyGrid, '/map', self.map_callback, 10)
         self.subscription_points = self.create_subscription(PointCloud2, '/colored_lidar_points', self.pointcloud_callback, 10)
         self.subscription_transform = self.create_subscription(TransformStamped, '/velodyne_fusion_transform', self.transform_callback, 10)
 
-        # Публикация обновленной карты
         self.map_pub = self.create_publisher(OccupancyGrid, '/colored_map', 10)
 
-        # Инициализация переменных
+        # Карта и буферы
         self.current_map = None
-        self.buffered_map_data = None  # Буфер для хранения кумулятивных данных карты
+        self.buffered_map_data = None
+        self.old_width = None
+        self.old_height = None
+        self.old_origin_x = None
+        self.old_origin_y = None
+
         self.current_transform = None
         self.new_transform = False
         self.new_pointcloud = False
 
-        self.class_intensity = np.array([200, 70, 100, 120, 150, 250, 250], dtype=np.int8)
-
+        self.class_intensity = np.array([300, 50, 200, 20, 120, 5, 180], dtype=np.int8)
         self.latest_pointcloud = None
         self.get_logger().info('map_overlay_started')
 
     def map_callback(self, msg):
         self.get_logger().info("Карта получена.")
+        total_cells = msg.info.width * msg.info.height
+
+        # Обновление, если карта сменилась
+        if (self.buffered_map_data is None or
+            self.old_width != msg.info.width or
+            self.old_height != msg.info.height or
+            self.old_origin_x != msg.info.origin.position.x or
+            self.old_origin_y != msg.info.origin.position.y):
+
+            self.get_logger().info("Обновление карты с переносом старых данных...")
+            new_data = np.full(total_cells, -1, dtype=np.int8)
+
+            if self.buffered_map_data is not None:
+                dx = int((self.old_origin_x - msg.info.origin.position.x) / msg.info.resolution)
+                dy = int((self.old_origin_y - msg.info.origin.position.y) / msg.info.resolution)
+
+                for y in range(self.old_height):
+                    for x in range(self.old_width):
+                        old_idx = y * self.old_width + x
+                        new_x = x + dx
+                        new_y = y + dy
+                        if 0 <= new_x < msg.info.width and 0 <= new_y < msg.info.height:
+                            new_idx = new_y * msg.info.width + new_x
+                            new_data[new_idx] = self.buffered_map_data[old_idx]
+
+            self.buffered_map_data = new_data
+
+            self.old_width = msg.info.width
+            self.old_height = msg.info.height
+            self.old_origin_x = msg.info.origin.position.x
+            self.old_origin_y = msg.info.origin.position.y
+
         self.current_map = msg
 
-        total_cells = self.current_map.info.width * self.current_map.info.height
-
-        if self.buffered_map_data is None or len(self.buffered_map_data) != total_cells:
-            self.get_logger().info(f"Инициализация карты: width={self.current_map.info.width}, height={self.current_map.info.height}, cells={total_cells}")
-            self.buffered_map_data = np.full(total_cells, -1, dtype=np.int8)
-        else:
-            self.get_logger().info("Размер карты не изменился.")
-
-    def transform_callback(self, msg: TransformStamped):
+    def transform_callback(self, msg):
         self.current_transform = msg
         self.new_transform = True
         self.process_data_if_ready()
@@ -59,93 +85,64 @@ class MapOverlayNode(Node):
         self.process_data_if_ready()
 
     def process_data_if_ready(self):
-        if not self.new_transform or not self.new_pointcloud:
+        if not self.new_transform or not self.new_pointcloud or self.current_map is None:
             return
 
         self.new_transform = False
         self.new_pointcloud = False
 
-        if self.current_map is None:
-            self.get_logger().warn("Карта ещё не получена.")
-            return
-
-        if self.current_transform is None or self.latest_pointcloud is None:
-            self.get_logger().warn("Не хватает данных для построения карты.")
-            return
-
-        # Читаем поля PointCloud2: x,y,z,class_id
-        # Проверяем, что поле class_id существует
         field_names = [f.name for f in self.latest_pointcloud.fields]
         if 'class_id' not in field_names:
-            self.get_logger().error("В облаке точек отсутствует поле 'class_id'.")
+            self.get_logger().error("PointCloud2 missing 'class_id'.")
             return
 
         points = pc2.read_points(self.latest_pointcloud, field_names=("x", "y", "z", "class_id"), skip_nans=True)
-        map_resolution = self.current_map.info.resolution
-        map_origin = self.current_map.info.origin
+        res = self.current_map.info.resolution
+        origin = self.current_map.info.origin
 
         for point in points:
             x, y, z, class_id = point
-
-            # Фильтры по условиям
             distance = math.sqrt(x**2 + y**2 + z**2)
-            if distance > self.draw_distance:
-                continue
-            if z > 2.0:
+            if distance > self.draw_distance or z > 2.0:
                 continue
             if z > 1.0:
                 class_id = 6
-            if x < 0.0:
-                continue
-            if not (0 <= class_id < len(self.class_intensity)):
+            if x < 0 or not (0 <= class_id < len(self.class_intensity)):
                 continue
 
-            # Преобразуем точку из локальных координат в глобальные
-            point_in_robot_frame = tf2_geometry_msgs.PointStamped()
-            point_in_robot_frame.header.frame_id = 'velodyne'
-            point_in_robot_frame.point.x = float(x)
-            point_in_robot_frame.point.y = float(y)
-            point_in_robot_frame.point.z = float(z)
+            local_point = tf2_geometry_msgs.PointStamped()
+            local_point.header.frame_id = 'velodyne'
+            local_point.point.x = float(x)
+            local_point.point.y = float(y)
+            local_point.point.z = float(z)
 
             try:
-                point_in_map_frame = tf2_geometry_msgs.do_transform_point(point_in_robot_frame, self.current_transform)
+                global_point = tf2_geometry_msgs.do_transform_point(local_point, self.current_transform)
             except Exception as e:
-                self.get_logger().error(f"Ошибка преобразования точки: {e}")
+                self.get_logger().error(f"TF error: {e}")
                 continue
 
-            # Индексы карты
-            mx = int((point_in_map_frame.point.x - map_origin.position.x) / map_resolution)
-            my = int((point_in_map_frame.point.y - map_origin.position.y) / map_resolution)
-
+            mx = int((global_point.point.x - origin.position.x) / res)
+            my = int((global_point.point.y - origin.position.y) / res)
             if 0 <= mx < self.current_map.info.width and 0 <= my < self.current_map.info.height:
                 index = my * self.current_map.info.width + mx
                 if 0 <= index < len(self.buffered_map_data):
                     self.buffered_map_data[index] = self.class_intensity[int(class_id)]
-                else:
-                    self.get_logger().warn(f"Индекс {index} вне границ массива карты.")
-            else:
-                self.get_logger().warn(f"Точка ({point_in_map_frame.point.x}, {point_in_map_frame.point.y}) вне границ карты.")
 
-        expected_size = self.current_map.info.width * self.current_map.info.height
-        if len(self.buffered_map_data) != expected_size:
-            self.get_logger().error(f"Размер данных карты ({len(self.buffered_map_data)}) не соответствует ожиданиям ({expected_size}). Перезапуск буфера.")
-            self.buffered_map_data = np.full(expected_size, -1, dtype=np.int8)
-            return
-
-        colored_map = OccupancyGrid()
-        colored_map.header = self.current_map.header
-        colored_map.header.frame_id = "map"
-        colored_map.info = self.current_map.info
-        colored_map.data = self.buffered_map_data.tolist()
-
-        self.map_pub.publish(colored_map)
-        self.get_logger().info("Обновленная карта опубликована.")
+        msg_out = OccupancyGrid()
+        msg_out.header = self.current_map.header
+        msg_out.header.frame_id = "map"
+        msg_out.info = self.current_map.info
+        msg_out.data = self.buffered_map_data.tolist()
+        self.map_pub.publish(msg_out)
+        self.get_logger().info("Опубликована обновленная карта")
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = MapOverlayNode()
     rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 
