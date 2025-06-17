@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=ROS startup – two Terminator layouts
+Exec=/bin/bash -c 'terminator -u -l ros_spam & sleep 2 && terminator -u -l ros_nav'
+X-GNOME-Autostart-enabled=true

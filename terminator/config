@@ -1,0 +1,107 @@
+[global_config]
+  focus = mouse
+  sticky = True
+  title_transmit_fg_color = "#000000"
+  title_transmit_bg_color = "#2ec27e"
+  title_inactive_bg_color = "#f66151"
+  inactive_color_offset = 1.0
+  suppress_multiple_term_dialog = True
+  line_height = 1.1
+[keybindings]
+[profiles]
+  [[default]]
+    cursor_color = "#aaaaaa"
+[layouts]
+  [[default]]
+    [[[window0]]]
+      type = Window
+      parent = ""
+    [[[child1]]]
+      type = Terminal
+      parent = window0
+
+  [[ros_spam]]
+  #--- ОКНО -------------------------------------------------
+    [[[root]]]
+      position = 4:0
+      type = Window
+      order = 0
+      parent = ""
+      size = 900, 900
+    [[[grand]]]
+      position = 450
+      type = HPaned
+      order = 1
+      parent = root
+
+    [[[terminal1]]]
+      profile = default
+      type = Terminal
+      order = 0
+      parent = grand
+      command = "bash -ic 'cd /home/user/dockerfiles/spam_unit && . install/setup.bash && ros2 run udp_relay_node udp_relay_node &&  exec bash'"
+
+    [[[terminal2]]]
+      profile = default
+      type = Terminal
+      order = 1
+      parent = grand
+      command = "bash -ic 'cd /home/user/dockerfiles/spam_unit && . install/setup.bash && ros2 launch trk211_teleop go.launch.py &&  exec bash'"
+
+  [[ros_nav]]
+    #--- ОКНО -------------------------------------------------
+    [[[root]]]
+      position = -4:0
+      type = Window
+      order = 0
+      parent = ""
+      size = 1072, 1884
+
+    [[[grand]]]
+      position = 536
+      type = HPaned
+      order = 0
+      parent = root
+    [[[left]]]
+      position = 942
+      type = VPaned
+      order = 0
+      parent = grand
+    [[[right]]]
+      position = 942
+      type = VPaned
+      order = 1
+      parent = grand
+
+    [[[terminal1]]]
+      profile = default
+      type = Terminal
+      order = 0
+      parent = left
+      command = "bash -ic 'cd /home/user/dockerfiles/teme/testros && . install/setup.bash && ros2 launch image_publisher_zmq module.launch.py  && exec bash'"
+
+    [[[terminal2]]]
+      profile = default
+      type = Terminal
+      order = 1
+      parent = left
+      command = "bash -ic 'cd /home/user/dockerfiles/teme/testros && . install/setup.bash && exec bash'"
+
+
+    [[[terminal3]]]
+      profile = default
+      type = Terminal
+      order = 1
+      parent = right
+      command = "bash -ic 'cd /home/user/neurolab/ZMQ_take_send && conda activate neurolab && exec bash'"
+
+    [[[terminal4]]]
+      profile = default
+      type = Terminal
+      order = 0
+      parent = right
+      command = "bash -ic 'cd /home/user/dockerfiles/teme/testros && source install/setup.bash && exec bash'"
+      
+
+
+[plugins]
